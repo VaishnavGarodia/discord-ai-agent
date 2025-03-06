@@ -10,6 +10,10 @@ PREFIX = "!"
 
 # Setup logging
 logger = logging.getLogger("discord")
+handler = logging.FileHandler(filename="discord.log", encoding="utf-8", mode="w")
+handler.setFormatter(logging.Formatter("%(asctime)s:%(levelname)s:%(name)s: %(message)s"))
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 # Load the environment variables
 load_dotenv()
@@ -21,7 +25,6 @@ bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 
 # Import the Mistral agent from the agent.py file
 agent = MistralAgent()
-
 
 # Get the token from the environment variables
 token = os.getenv("DISCORD_TOKEN")
@@ -36,6 +39,18 @@ async def on_ready():
     https://discordpy.readthedocs.io/en/latest/api.html#discord.on_ready
     """
     logger.info(f"{bot.user} has connected to Discord!")
+    
+    # Update usernames in the database
+    for guild in bot.guilds:
+        agent.data_manager.update_usernames_in_database(guild)
+    
+    # Set up a custom status for the bot
+    await bot.change_presence(activity=discord.Activity(
+        type=discord.ActivityType.watching, 
+        name="fashion trends | !help"
+    ))
+    
+    print(f"FashionBot is ready! Logged in as {bot.user}")
 
 
 @bot.event
@@ -49,11 +64,18 @@ async def on_message(message: discord.Message):
     await bot.process_commands(message)
 
     # Ignore messages from self or other bots to prevent infinite loops.
-    if message.author.bot or message.content.startswith("!"):
+    if message.author.bot:
+        return
+        
+    # Process fashionbot commands through the agent if it starts with !
+    if message.content.startswith("!"):
+        logger.info(f"Processing command from {message.author}: {message.content}")
+        agent_response = await agent.process_command(message)
+        if agent_response:
+            await message.reply(agent_response)
         return
 
-    # Process the message with the agent you wrote
-    # Open up the agent.py file to customize the agent
+    # For regular messages, use the agent for fashion advice
     logger.info(f"Processing message from {message.author}: {message.content}")
     response = await agent.run(message)
 
@@ -61,12 +83,8 @@ async def on_message(message: discord.Message):
     await message.reply(response)
 
 
-# Commands
-
-
-# This example command is here to show you how to add commands to the bot.
-# Run !ping with any number of arguments to see the command in action.
-# Feel free to delete this if your project will not need commands.
+# Commands that we want to handle directly in bot.py
+# The ping command is kept as an example
 @bot.command(name="ping", help="Pings the bot.")
 async def ping(ctx, *, arg=None):
     if arg is None:
