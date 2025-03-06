@@ -1,41 +1,24 @@
 {
     "active_trend": {
-        "name": "y2k",
-        "description": "Oh, darling, let's blast off to the past! Y2K fashion, short for \"Year 2000,\" is a playful and nostalgic trend that draws inspiration from the late 90s and early 2000s. Think low-rise jeans, crop tops, platform shoes, and mini skirts, all wrapped up in a colorful and shiny package with a healthy dose of logomania and futuristic design elements \u2013 it's like a fashion party that never ended!",
-        "start_date": "2025-03-05T22:55:43.115820",
-        "end_date": "2025-03-05T22:55:43.115833",
+        "name": "y2k revival",
+        "description": "Oh, darling, let me take you on a blast to the past with the 'Y2K revival' trend! This early 2000s-inspired style is all about embracing bold colors, futuristic designs, and unapologetic bling. Think low-rise jeans, crop tops, platform shoes, and mini shoulder bags \u2013 it's like Paris Hilton and Britney Spears are still ruling the scene!",
+        "start_date": "2025-03-05T23:58:54.236235",
+        "end_date": "2025-03-05T23:58:54.236305",
         "duration_days": 7,
-        "participants": [
-            746758460410036225
-        ]
+        "participants": []
     },
-    "past_trends": [],
-    "submissions": {
-        "746758460410036225": [
-            {
-                "user_id": "746758460410036225",
-                "username": "vaishnav9370",
-                "image_url": "https://cdn.discordapp.com/attachments/1347099202127265867/1347101106928357396/2161812386.webp?ex=67ca992b&is=67c947ab&hm=9754acd73a7e97cdea15c5799e44c96f360e834315a988586872797b0b107db8&",
-                "timestamp": "2025-03-05T22:58:51.946275",
-                "rating": {
-                    "trend_accuracy": 8.0,
-                    "creativity": 7.5,
-                    "fit": 2.0,
-                    "total": 5.833333333333333
-                }
-            },
-            {
-                "user_id": "746758460410036225",
-                "username": "vaishnav9370",
-                "image_url": "https://cdn.discordapp.com/attachments/1347099202127265867/1347103703760371722/2161812386.webp?ex=67ca9b96&is=67c94a16&hm=3a3281f111162f65b4cad86233bbc35197070e22edc746cdfac537f284fec4e2&",
-                "timestamp": "2025-03-05T23:09:11.071052",
-                "rating": {
-                    "trend_accuracy": 2.0,
-                    "creativity": 2.0,
-                    "fit": 7.0,
-                    "total": 3.6666666666666665
-                }
-            }
-        ]
-    }
+    "past_trends": [
+        {
+            "name": "y2k",
+            "description": "Oh, darling, let's blast off to the past! Y2K fashion, short for \"Year 2000,\" is a playful and nostalgic trend that draws inspiration from the late 90s and early 2000s. Think low-rise jeans, crop tops, platform shoes, and mini skirts, all wrapped up in a colorful and shiny package with a healthy dose of logomania and futuristic design elements \u2013 it's like a fashion party that never ended!",
+            "start_date": "2025-03-05T22:55:43.115820",
+            "end_date": "2025-03-05T22:55:43.115833",
+            "duration_days": 7,
+            "participants": [
+                746758460410036225,
+                1347104491996184627
+            ]
+        }
+    ],
+    "submissions": {}
 }

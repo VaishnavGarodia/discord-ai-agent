@@ -99,10 +99,6 @@ class MistralAgent:
         return None
         
     async def handle_trend_command(self, message: discord.Message, parts):
-        # Check if user has admin permissions
-        if not message.author.guild_permissions.administrator:
-            return "Sorry, only administrators can manage trends."
-        
         if len(parts) < 2:
             return """
 **Trend Command Help**
@@ -207,40 +203,73 @@ Started: {active_trend['start_date']}
         if not success:
             return f"Error submitting your outfit: {submission}"
         
-        # Rate the submission with Mistral
-        rating_message = RATING_PROMPT.format(
-            trend_name=active_trend['name'],
-            trend_description=active_trend['description'],
-            image_url=image_url
-        )
+        # Enhanced rating prompt with detailed image analysis instructions
+        rating_message = f"""Analyze this outfit submission for the {active_trend['name']} trend challenge. 
+The image URL is: {image_url}
+
+IMPORTANT INSTRUCTIONS:
+1. First, describe what you see in the image in detail (clothing items, colors, accessories, styling)
+2. Then analyze how these visual elements relate to the {active_trend['name']} trend
+3. MUST provide numerical ratings on a scale of 1-10 for each category
+
+Please rate this outfit on the following criteria:
+1. Trend Accuracy (1-10): How well does this outfit align with the {active_trend['name']} aesthetic? Reference specific visual elements.
+2. Creativity (1-10): How unique and innovative is the styling? Point out specific creative choices.
+3. Overall Fit (1-10): How well do the pieces work together as a cohesive look? Discuss proportions and styling.
+
+For each rating, provide specific feedback about what works well and what could be improved.
+Format your response with clear headers and explicit numerical ratings (e.g., "Trend Accuracy: 8/10").
+
+Trend Description: {active_trend['description']}
+
+Your analysis MUST be based on the actual visual elements in the image. Be specific about what you see.
+Remember to be constructive, specific, and fair in your assessment.
+"""
         
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": rating_message},
         ]
         
-        response = await self.client.chat.complete_async(
-            model=MISTRAL_MODEL,
-            messages=messages,
-        )
-        
-        # Extract ratings from Mistral's response using a helper method
-        ai_feedback = response.choices[0].message.content
-        trend_accuracy, creativity, fit = self.extract_ratings(ai_feedback)
-        
-        # Save ratings
-        self.data_manager.rate_submission(
-            message.author.id,
-            trend_accuracy,
-            creativity,
-            fit,
-            username=message.author.name
-        )
-        
-        # Get updated user info
-        user_info = self.data_manager.get_user(message.author.id)
-        
-        return f"""
+        # Add retry logic for more reliability
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = await self.client.chat.complete_async(
+                    model=MISTRAL_MODEL,
+                    messages=messages,
+                    temperature=0.3,  # Lower temperature for more accurate analysis
+                    max_tokens=1500,  # Ensure we get a complete response with detailed analysis
+                )
+                
+                ai_feedback = response.choices[0].message.content
+                
+                # Improved rating extraction
+                trend_accuracy, creativity, fit = self.extract_ratings(ai_feedback)
+                
+                # Validate ratings are in proper range
+                if not (1 <= trend_accuracy <= 10 and 1 <= creativity <= 10 and 1 <= fit <= 10):
+                    if attempt < max_retries - 1:
+                        continue  # Try again if ratings are invalid
+                    else:
+                        # Use default values if we've exhausted retries
+                        trend_accuracy = max(1, min(trend_accuracy, 10))
+                        creativity = max(1, min(creativity, 10))
+                        fit = max(1, min(fit, 10))
+                
+                # Save ratings
+                self.data_manager.rate_submission(
+                    message.author.id,
+                    trend_accuracy,
+                    creativity,
+                    fit,
+                    username=message.author.name
+                )
+                
+                # Get updated user info
+                user_info = self.data_manager.get_user(message.author.id)
+                
+                return f"""
 ## Outfit Submission for {active_trend['name']}
 
 {ai_feedback}
@@ -250,61 +279,38 @@ Started: {active_trend['start_date']}
 
 Thank you for participating! Check the leaderboard with `!leaderboard`
 """
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    print(f"Error during image analysis (attempt {attempt+1}): {e}")
+                    continue
+                else:
+                    return "Sorry, I encountered an error analyzing your outfit. Please try again later."
     
     def extract_ratings(self, feedback):
         try:
             # Default values
             trend_accuracy = creativity = fit = 7.0
             
-            # Look for specific patterns in the feedback
-            lines = feedback.split('\n')
-            for line in lines:
-                if "trend accuracy" in line.lower() or "trend accuracy:" in line.lower():
-                    parts = line.split(':')
-                    if len(parts) > 1:
-                        try:
-                            # Try to extract the rating (assumes format like "Trend Accuracy: 8/10")
-                            rating_text = parts[1].strip()
-                            if '/' in rating_text:
-                                trend_accuracy = float(rating_text.split('/')[0])
-                            else:
-                                # Just find any number in the string
-                                import re
-                                nums = re.findall(r'\d+\.\d+|\d+', rating_text)
-                                if nums:
-                                    trend_accuracy = float(nums[0])
-                        except:
-                            pass
-                            
-                elif "creativity" in line.lower() or "creativity:" in line.lower():
-                    parts = line.split(':')
-                    if len(parts) > 1:
-                        try:
-                            rating_text = parts[1].strip()
-                            if '/' in rating_text:
-                                creativity = float(rating_text.split('/')[0])
-                            else:
-                                import re
-                                nums = re.findall(r'\d+\.\d+|\d+', rating_text)
-                                if nums:
-                                    creativity = float(nums[0])
-                        except:
-                            pass
-                            
-                elif "fit" in line.lower() or "overall fit:" in line.lower():
-                    parts = line.split(':')
-                    if len(parts) > 1:
-                        try:
-                            rating_text = parts[1].strip()
-                            if '/' in rating_text:
-                                fit = float(rating_text.split('/')[0])
-                            else:
-                                import re
-                                nums = re.findall(r'\d+\.\d+|\d+', rating_text)
-                                if nums:
-                                    fit = float(nums[0])
-                        except:
-                            pass
+            # More robust pattern matching
+            import re
+            
+            # Look for ratings in format like "Trend Accuracy: 8/10" or "Trend Accuracy: 8"
+            trend_match = re.search(r'trend accuracy:?\s*(\d+(?:\.\d+)?)[/\s]*(?:10)?', feedback.lower())
+            if trend_match:
+                trend_accuracy = float(trend_match.group(1))
+            
+            creativity_match = re.search(r'creativity:?\s*(\d+(?:\.\d+)?)[/\s]*(?:10)?', feedback.lower())
+            if creativity_match:
+                creativity = float(creativity_match.group(1))
+            
+            fit_match = re.search(r'(?:overall\s+)?fit:?\s*(\d+(?:\.\d+)?)[/\s]*(?:10)?', feedback.lower())
+            if fit_match:
+                fit = float(fit_match.group(1))
+            
+            # Ensure ratings are within valid range
+            trend_accuracy = max(1.0, min(trend_accuracy, 10.0))
+            creativity = max(1.0, min(creativity, 10.0))
+            fit = max(1.0, min(fit, 10.0))
             
             return trend_accuracy, creativity, fit
             
@@ -352,8 +358,8 @@ Keep styling to earn more points and unlock rewards!
         if len(parts) < 2:
             return """
 **Competition Command Help**
-- `!competition start [name]` - Start a new styling competition (admin only)
-- `!competition end` - End the current competition (admin only)
+- `!competition start [name]` - Start a new styling competition
+- `!competition end` - End the current competition
 - `!competition status` - Show current active competition
 - `!competition submit` - Submit an entry (with image attachment)
 """
@@ -361,9 +367,6 @@ Keep styling to earn more points and unlock rewards!
         action = parts[1].lower()
         
         if action == "start":
-            if not message.author.guild_permissions.administrator:
-                return "Sorry, only administrators can start competitions."
-                
             if len(parts) < 3:
                 return "Please provide a name for the competition."
                 
@@ -411,9 +414,6 @@ Competition runs for {result['duration_days']} days. The winner gets 100 bonus p
                 return f"Could not start competition: {result}"
                 
         elif action == "end":
-            if not message.author.guild_permissions.administrator:
-                return "Sorry, only administrators can end competitions."
-                
             success, result = self.data_manager.end_competition()
             
             if success:
@@ -522,8 +522,8 @@ Good luck!
 ## 👗 FashionBot Commands 👗
 
 **Trend Challenges:**
-- `!trend announce [name]` - Start a new trend challenge (admin)
-- `!trend end` - End the current trend challenge (admin)
+- `!trend announce [name]` - Start a new trend challenge
+- `!trend end` - End the current trend challenge
 - `!trend list` - See available trend ideas
 - `!trend status` - Show the current active trend
 
@@ -533,8 +533,8 @@ Good luck!
 - `!leaderboard` - View the top fashionistas
 
 **Competitions:**
-- `!competition start [name]` - Start a styling competition (admin)
-- `!competition end` - End the current competition (admin)
+- `!competition start [name]` - Start a styling competition
+- `!competition end` - End the current competition
 - `!competition status` - Show current competition info
 - `!competition submit` - Submit your entry (attach photo)
 - `!vote [username]` - Vote for someone's competition entry
