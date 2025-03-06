@@ -1,50 +1,13 @@
-2025-03-05 22:46:47,705:WARNING:discord.client: PyNaCl is not installed, voice will NOT be supported
-2025-03-05 22:46:47,761:INFO:discord.client: logging in using static token
-2025-03-05 22:46:48,511:INFO:discord.gateway: Shard ID None has connected to Gateway (Session ID: 1ea91d24500e04915052e77343624adb).
-2025-03-05 22:46:50,513:INFO:discord: CS 153#2411 has connected to Discord!
-2025-03-05 22:54:43,309:INFO:discord: Processing command from vaishnav9370: !help
-2025-03-05 22:55:04,486:INFO:discord: Processing command from vaishnav9370: !points
-2025-03-05 22:55:04,488:ERROR:discord.ext.commands.bot: Ignoring exception in command None
-discord.ext.commands.errors.CommandNotFound: Command "points" is not found
-2025-03-05 22:55:25,992:INFO:discord: Processing command from vaishnav9370: !leaderboard
-2025-03-05 22:55:25,993:ERROR:discord.ext.commands.bot: Ignoring exception in command None
-discord.ext.commands.errors.CommandNotFound: Command "leaderboard" is not found
-2025-03-05 22:55:40,610:INFO:discord: Processing command from vaishnav9370: !trend announce y2k
-2025-03-05 22:55:40,636:ERROR:discord.ext.commands.bot: Ignoring exception in command None
+2025-03-05 23:57:22,879:WARNING:discord.client: PyNaCl is not installed, voice will NOT be supported
+2025-03-05 23:57:22,954:INFO:discord.client: logging in using static token
+2025-03-05 23:57:23,864:INFO:discord.gateway: Shard ID None has connected to Gateway (Session ID: 0ee03cdfba7a2186b069552c23e38d47).
+2025-03-05 23:57:25,882:INFO:discord: CS 153#2411 has connected to Discord!
+2025-03-05 23:57:42,526:INFO:discord: Processing command from etet24___: !trend announce y2k revival
+2025-03-05 23:57:42,720:ERROR:discord.ext.commands.bot: Ignoring exception in command None
 discord.ext.commands.errors.CommandNotFound: Command "trend" is not found
-2025-03-05 22:57:24,510:INFO:discord: Processing command from vaishnav9370: !trend status
-2025-03-05 22:57:24,513:ERROR:discord.ext.commands.bot: Ignoring exception in command None
+2025-03-05 23:58:45,784:INFO:discord: Processing command from etet24___: !trend end
+2025-03-05 23:58:45,829:ERROR:discord.ext.commands.bot: Ignoring exception in command None
 discord.ext.commands.errors.CommandNotFound: Command "trend" is not found
-2025-03-05 22:58:51,942:INFO:discord: Processing command from vaishnav9370: !submit
-2025-03-05 22:58:51,966:ERROR:discord.ext.commands.bot: Ignoring exception in command None
-discord.ext.commands.errors.CommandNotFound: Command "submit" is not found
-2025-03-05 23:05:14,525:INFO:discord.gateway: Shard ID None has successfully RESUMED session 1ea91d24500e04915052e77343624adb.
-2025-03-05 23:05:47,744:INFO:discord: Processing command from vaishnav9370: !leaderboard
-2025-03-05 23:05:47,748:ERROR:discord.ext.commands.bot: Ignoring exception in command None
-discord.ext.commands.errors.CommandNotFound: Command "leaderboard" is not found
-2025-03-05 23:08:59,524:INFO:discord: Processing command from vaishnav9370: !leaderboard
-2025-03-05 23:08:59,528:ERROR:discord.ext.commands.bot: Ignoring exception in command None
-discord.ext.commands.errors.CommandNotFound: Command "leaderboard" is not found
-2025-03-05 23:09:03,458:INFO:discord: Processing command from vaishnav9370: !submit
-2025-03-05 23:09:03,460:ERROR:discord.ext.commands.bot: Ignoring exception in command None
-discord.ext.commands.errors.CommandNotFound: Command "submit" is not found
-2025-03-05 23:09:11,068:INFO:discord: Processing command from vaishnav9370: !submit
-2025-03-05 23:09:11,086:ERROR:discord.ext.commands.bot: Ignoring exception in command None
-discord.ext.commands.errors.CommandNotFound: Command "submit" is not found
-2025-03-05 23:09:21,675:ERROR:discord.client: Ignoring exception in on_message
-Traceback (most recent call last):
-  File "/opt/miniconda3/envs/discord_bot/lib/python3.13/site-packages/discord/client.py", line 481, in _run_event
-    await coro(*args, **kwargs)
-  File "/Users/vaishnavgarodia/Dev/CS153/ai-agent/bot.py", line 71, in on_message
-    if message.content.startswith("!"):
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/miniconda3/envs/discord_bot/lib/python3.13/site-packages/discord/message.py", line 1869, in reply
-    return await self.channel.send(content, reference=self, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/miniconda3/envs/discord_bot/lib/python3.13/site-packages/discord/abc.py", line 1644, in send
-    data = await state.http.send_message(channel.id, params=params)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/opt/miniconda3/envs/discord_bot/lib/python3.13/site-packages/discord/http.py", line 762, in request
-    raise HTTPException(response, data)
-discord.errors.HTTPException: 400 Bad Request (error code: 50035): Invalid Form Body
-In content: Must be 2000 or fewer in length.
+2025-03-05 23:58:51,676:INFO:discord: Processing command from etet24___: !trend announce y2k revival
+2025-03-05 23:58:51,788:ERROR:discord.ext.commands.bot: Ignoring exception in command None
+discord.ext.commands.errors.CommandNotFound: Command "trend" is not found
