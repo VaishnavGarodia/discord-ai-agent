@@ -118,23 +118,19 @@ class MistralAgent:
             # If trend name is provided, use it. Otherwise, pick a random one
             if len(parts) >= 3:
                 trend_name = " ".join(parts[2:])
-                if trend_name in self.trend_descriptions:
-                    description = self.trend_descriptions[trend_name]
-                else:
-                    # If we don't have a description, ask Mistral to generate one
-                    description_prompt = f"Create a brief description (2-3 sentences) of the fashion trend '{trend_name}'. Include key style elements, signature pieces, and overall aesthetic."
-                    messages = [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": description_prompt},
-                    ]
-                    response = await self.client.chat.complete_async(
-                        model=MISTRAL_MODEL,
-                        messages=messages,
-                    )
-                    description = response.choices[0].message.content
+                # If we don't have a description, ask Mistral to generate one
+                description_prompt = f"Create a brief description (2-3 sentences) of the fashion trend '{trend_name}'. Include key style elements, signature pieces, and overall aesthetic."
+                messages = [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": description_prompt},
+                ]
+                response = await self.client.chat.complete_async(
+                    model=MISTRAL_MODEL,
+                    messages=messages,
+                )
+                description = response.choices[0].message.content
             else:
-                trend_name = random.choice(self.trend_ideas)
-                description = self.trend_descriptions[trend_name]
+                return "Please provide a trend name: `!trend announce [trend name]`"
             
             success, result = self.data_manager.announce_trend(trend_name, description)
             
@@ -256,7 +252,6 @@ Thank you for participating! Check the leaderboard with `!leaderboard`
 """
     
     def extract_ratings(self, feedback):
-        # This is a simple extraction method - in production, you'd want more robust parsing
         try:
             # Default values
             trend_accuracy = creativity = fit = 7.0
@@ -315,7 +310,7 @@ Thank you for participating! Check the leaderboard with `!leaderboard`
             
         except Exception as e:
             print(f"Error extracting ratings: {e}")
-            return 7.0, 7.0, 7.0  # Default fallback ratings
+            return 7.0, 7.0, 7.0
     
     async def handle_leaderboard_command(self, message: discord.Message):
         leaderboard = self.data_manager.get_leaderboard(10)
@@ -503,7 +498,6 @@ Good luck!
             
         username = parts[1]
         
-        # Find user by name (in a real system, you'd want a more robust way to identify users)
         target_user = None
         for member in message.guild.members:
             if member.name.lower() == username.lower():
