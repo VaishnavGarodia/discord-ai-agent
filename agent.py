@@ -1,32 +1,38 @@
 import os
-from mistralai import Mistral
+from dotenv import load_dotenv
 import discord
 import random
 import json
 from data_manager import DataManager
+import google.generativeai as genai
+from PIL import Image
+import requests
+from io import BytesIO
+import re
+import base64
 
-MISTRAL_MODEL = "mistral-large-latest"
-SYSTEM_PROMPT = """You are FashionBot, a fashion-forward AI assistant with expertise in style trends and fashion critique.
-You're designed to help users with fashion challenges, rate outfits based on trends, and provide friendly, constructive feedback.
-Be knowledgeable but approachable, and express enthusiasm about fashion while giving honest assessments."""
+# Load environment variables
+load_dotenv()
 
-RATING_PROMPT = """Analyze this outfit submission for the {trend_name} trend challenge: {image_url}
+# Initialize Gemini
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    raise ValueError("GEMINI_API_KEY not found in environment variables")
 
-Provide ratings (1-10) for:
-1. Trend Accuracy: How well the outfit aligns with the {trend_name} aesthetic
-2. Creativity: Unique interpretation and styling choices
-3. Overall Fit: How well the pieces work together and flatter the wearer
-
-For each rating, provide specific feedback. Be constructive, positive, but honest. 
-Format your response with clear headers and ratings, followed by a brief summary paragraph.
-
-Trend Description: {trend_description}"""
+print(f"Initializing Gemini with API key: {GEMINI_API_KEY[:5]}...")  # Debug log
+genai.configure(api_key=GEMINI_API_KEY)
 
 class MistralAgent:
     def __init__(self):
-        MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
-        self.client = Mistral(api_key=MISTRAL_API_KEY)
         self.data_manager = DataManager()
+        try:
+            # Initialize Gemini model with the correct model name
+            self.vision_model = genai.GenerativeModel('gemini-1.5-flash')  # Updated model name
+            self.text_model = genai.GenerativeModel('gemini-pro')  # For text interactions
+            print("Gemini models initialized successfully")
+        except Exception as e:
+            print(f"Error initializing Gemini models: {str(e)}")
+            raise
         
         # Sample trend ideas for inspiration
         self.trend_ideas = [
@@ -55,6 +61,11 @@ class MistralAgent:
             "Normcore": "Intentionally ordinary, unremarkable clothing focusing on basics and practical pieces.",
             "Dopamine Dressing": "Joy-inducing fashion with bold colors, fun patterns, and playful accessories to boost mood."
         }
+
+    def clear_chat_history(self):
+        """Clear any stored chat history to ensure fresh analysis."""
+        if hasattr(self, 'chat_history'):
+            self.chat_history = []
 
     async def run(self, message: discord.Message):
         # Check if this is a command that should be processed elsewhere
@@ -182,82 +193,127 @@ Started: {active_trend['start_date']}
         return "Unknown trend command. Try `!trend` for help."
     
     async def handle_submit_command(self, message: discord.Message):
-        # Check if there's an active trend
-        active_trend = self.data_manager.get_active_trend()
-        if not active_trend:
-            return "Sorry, there's no active trend challenge to submit to. Wait for the next announcement!"
-        
-        # Check if there's an image attachment
-        if not message.attachments:
-            return "Please attach an image of your outfit to submit for the trend challenge."
-        
-        image_url = message.attachments[0].url
-        
-        # Save the submission
-        success, submission = self.data_manager.submit_outfit(
-            message.author.id, 
-            message.author.name,
-            image_url
-        )
-        
-        if not success:
-            return f"Error submitting your outfit: {submission}"
-        
-        # Enhanced rating prompt with detailed image analysis instructions
-        rating_message = f"""Analyze this outfit submission for the {active_trend['name']} trend challenge. 
-The image URL is: {image_url}
-
-IMPORTANT INSTRUCTIONS:
-1. First, describe what you see in the image in detail (clothing items, colors, accessories, styling)
-2. Then analyze how these visual elements relate to the {active_trend['name']} trend
-3. MUST provide numerical ratings on a scale of 1-10 for each category
-
-Please rate this outfit on the following criteria:
-1. Trend Accuracy (1-10): How well does this outfit align with the {active_trend['name']} aesthetic? Reference specific visual elements.
-2. Creativity (1-10): How unique and innovative is the styling? Point out specific creative choices.
-3. Overall Fit (1-10): How well do the pieces work together as a cohesive look? Discuss proportions and styling.
-
-For each rating, provide specific feedback about what works well and what could be improved.
-Format your response with clear headers and explicit numerical ratings (e.g., "Trend Accuracy: 8/10").
-
-Trend Description: {active_trend['description']}
-
-Your analysis MUST be based on the actual visual elements in the image. Be specific about what you see.
-Remember to be constructive, specific, and fair in your assessment.
-"""
-        
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": rating_message},
-        ]
-        
-        # Add retry logic for more reliability
-        max_retries = 3
-        for attempt in range(max_retries):
+        """Handle outfit submissions using Gemini Vision."""
+        try:
+            # Check if there's an active trend
+            active_trend = self.data_manager.get_active_trend()
+            if not active_trend:
+                return "Sorry, there's no active trend challenge to submit to. Wait for the next announcement!"
+            
+            # Check for image attachment
+            if not message.attachments:
+                return "Please attach an image of your outfit to submit for the trend challenge."
+            
+            image_url = message.attachments[0].url
+            print(f"Processing image from URL: {image_url}")  # Debug log
+            
             try:
-                response = await self.client.chat.complete_async(
-                    model=MISTRAL_MODEL,
-                    messages=messages,
-                    temperature=0.3,  # Lower temperature for more accurate analysis
-                    max_tokens=1500,  # Ensure we get a complete response with detailed analysis
+                # Download and process the image
+                response = requests.get(image_url)
+                print(f"Image download status: {response.status_code}")  # Debug log
+                
+                if response.status_code != 200:
+                    return "Error downloading the image. Please try again."
+                
+                img_data = BytesIO(response.content)
+                img = Image.open(img_data)
+                
+                # Convert image to RGB if it's not
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                
+                # Resize if image is too large
+                max_size = (1024, 1024)
+                if img.size[0] > max_size[0] or img.size[1] > max_size[1]:
+                    img.thumbnail(max_size, Image.Resampling.LANCZOS)
+                
+                print(f"Image processed successfully. Mode: {img.mode}, Size: {img.size}")  # Debug log
+                
+                # Create the prompt for Gemini
+                prompt = f"""Analyze this outfit for the {active_trend['name']} trend challenge.
+
+REQUIREMENTS:
+1. Be extremely specific about colors and items you can see
+2. Only describe what is clearly visible
+3. Rate on three criteria (1-10 scale)
+
+FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+
+## Visual Inventory
+- Top: [exact description]
+- Bottom: [exact description]
+- Footwear: [if visible]
+- Accessories: [only visible items]
+- Colors: [exact colors seen]
+
+## Style Analysis
+[How the outfit relates to the {active_trend['name']} trend]
+
+## Ratings
+Trend Accuracy: [X]/10
+[Specific justification]
+
+Creativity: [X]/10
+[Specific justification]
+
+Overall Fit: [X]/10
+[Specific justification]
+
+## Summary
+[Brief assessment]"""
+
+                print("Sending request to Gemini...")  # Debug log
+                
+                # Convert image to base64 for Gemini
+                img_byte_arr = BytesIO()
+                img.save(img_byte_arr, format='JPEG')
+                img_byte_arr = img_byte_arr.getvalue()
+                img_b64 = base64.b64encode(img_byte_arr).decode('utf-8')
+                
+                # Get Gemini's analysis
+                try:
+                    response = self.vision_model.generate_content([
+                        prompt,
+                        {
+                            "mime_type": "image/jpeg",
+                            "data": img_b64
+                        }
+                    ])
+                    print(f"Gemini response received: {response}")  # Debug log
+                    
+                except Exception as e:
+                    print(f"Gemini API error: {str(e)}")
+                    if "deprecated" in str(e).lower():
+                        print(f"Full error: {str(e)}")  # Additional debug logging
+                        return "Sorry, there was an error with the image analysis service. Please contact the bot administrator."
+                    return "Error analyzing the image. Please try again."
+                
+                if not response.text:
+                    return "Sorry, I couldn't analyze the image. Please try again."
+                    
+                analysis = response.text
+                print(f"Analysis text: {analysis[:100]}...")  # Debug log
+                
+                # Extract ratings using regex
+                trend_match = re.search(r'Trend Accuracy:\s*(\d+)', analysis)
+                creativity_match = re.search(r'Creativity:\s*(\d+)', analysis)
+                fit_match = re.search(r'Overall Fit:\s*(\d+)', analysis)
+                
+                trend_accuracy = float(trend_match.group(1)) if trend_match else 5.0
+                creativity = float(creativity_match.group(1)) if creativity_match else 5.0
+                fit = float(fit_match.group(1)) if fit_match else 5.0
+                
+                # Save submission and ratings
+                success, submission = self.data_manager.submit_outfit(
+                    message.author.id,
+                    message.author.name,
+                    image_url
                 )
                 
-                ai_feedback = response.choices[0].message.content
+                if not success:
+                    return f"Error submitting your outfit: {submission}"
                 
-                # Improved rating extraction
-                trend_accuracy, creativity, fit = self.extract_ratings(ai_feedback)
-                
-                # Validate ratings are in proper range
-                if not (1 <= trend_accuracy <= 10 and 1 <= creativity <= 10 and 1 <= fit <= 10):
-                    if attempt < max_retries - 1:
-                        continue  # Try again if ratings are invalid
-                    else:
-                        # Use default values if we've exhausted retries
-                        trend_accuracy = max(1, min(trend_accuracy, 10))
-                        creativity = max(1, min(creativity, 10))
-                        fit = max(1, min(fit, 10))
-                
-                # Save ratings
+                # Save the ratings
                 self.data_manager.rate_submission(
                     message.author.id,
                     trend_accuracy,
@@ -269,54 +325,37 @@ Remember to be constructive, specific, and fair in your assessment.
                 # Get updated user info
                 user_info = self.data_manager.get_user(message.author.id)
                 
-                return f"""
+                # Format response
+                response_text = f"""
 ## Outfit Submission for {active_trend['name']}
 
-{ai_feedback}
+{analysis}
 
 **Points earned:** {int((trend_accuracy + creativity + fit) / 3 * 10)}
 **Total points:** {user_info['points']}
 
 Thank you for participating! Check the leaderboard with `!leaderboard`
 """
+                
+                return self.split_message(response_text)
+                
+            except requests.RequestException as e:
+                print(f"Error downloading image: {str(e)}")
+                return "Error downloading the image. Please try again."
+            except Image.UnidentifiedImageError:
+                print("Error: Could not identify image format")
+                return "Error: The image format is not supported. Please try a different image."
             except Exception as e:
-                if attempt < max_retries - 1:
-                    print(f"Error during image analysis (attempt {attempt+1}): {e}")
-                    continue
-                else:
-                    return "Sorry, I encountered an error analyzing your outfit. Please try again later."
-    
-    def extract_ratings(self, feedback):
-        try:
-            # Default values
-            trend_accuracy = creativity = fit = 7.0
-            
-            # More robust pattern matching
-            import re
-            
-            # Look for ratings in format like "Trend Accuracy: 8/10" or "Trend Accuracy: 8"
-            trend_match = re.search(r'trend accuracy:?\s*(\d+(?:\.\d+)?)[/\s]*(?:10)?', feedback.lower())
-            if trend_match:
-                trend_accuracy = float(trend_match.group(1))
-            
-            creativity_match = re.search(r'creativity:?\s*(\d+(?:\.\d+)?)[/\s]*(?:10)?', feedback.lower())
-            if creativity_match:
-                creativity = float(creativity_match.group(1))
-            
-            fit_match = re.search(r'(?:overall\s+)?fit:?\s*(\d+(?:\.\d+)?)[/\s]*(?:10)?', feedback.lower())
-            if fit_match:
-                fit = float(fit_match.group(1))
-            
-            # Ensure ratings are within valid range
-            trend_accuracy = max(1.0, min(trend_accuracy, 10.0))
-            creativity = max(1.0, min(creativity, 10.0))
-            fit = max(1.0, min(fit, 10.0))
-            
-            return trend_accuracy, creativity, fit
+                print(f"Error processing image: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                return "Error processing the image. Please try again."
             
         except Exception as e:
-            print(f"Error extracting ratings: {e}")
-            return 7.0, 7.0, 7.0
+            print(f"General error in handle_submit_command: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return "Sorry, there was an error analyzing your image. Please try again."
     
     async def handle_leaderboard_command(self, message: discord.Message):
         leaderboard = self.data_manager.get_leaderboard(10)
@@ -541,3 +580,47 @@ Good luck!
 
 For any fashion advice, just message me directly!
 """
+
+    def split_message(self, message, limit=1900):
+        """Split a message into chunks that fit within Discord's character limit."""
+        if not message:
+            return ["No response generated."]
+        
+        if len(message) <= limit:
+            return [message]
+        
+        chunks = []
+        lines = message.split('\n')
+        current_chunk = ""
+
+        for line in lines:
+            # If this line would make the chunk too long, start a new chunk
+            if len(current_chunk) + len(line) + 1 > limit:
+                if current_chunk:
+                    chunks.append(current_chunk.strip())
+                current_chunk = line + '\n'
+            else:
+                current_chunk += line + '\n'
+
+        # Add the last chunk if there is one
+        if current_chunk:
+            chunks.append(current_chunk.strip())
+
+        # If any chunk is still too long, split it by words
+        final_chunks = []
+        for chunk in chunks:
+            if len(chunk) > limit:
+                words = chunk.split(' ')
+                current_chunk = ""
+                for word in words:
+                    if len(current_chunk) + len(word) + 1 > limit:
+                        final_chunks.append(current_chunk.strip())
+                        current_chunk = word + ' '
+                    else:
+                        current_chunk += word + ' '
+                if current_chunk:
+                    final_chunks.append(current_chunk.strip())
+            else:
+                final_chunks.append(chunk)
+
+        return final_chunks
