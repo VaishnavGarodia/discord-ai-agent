@@ -280,6 +280,9 @@ class DataManager:
         # Update submission
         comp_data["active_competition"]["submissions"][str(user_id)][-1] = latest_submission
         
+        # Add points to user
+        self.add_points(user_id, 10)
+        
         self._save_json(self.competitions_file, comp_data)
         return True, "Vote recorded successfully"
     
