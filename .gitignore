@@ -10,4 +10,4 @@ wheels/
 .venv
 
 # Secrets
-.env
+.envMiniconda3-latest-MacOSX-arm64.pkg
