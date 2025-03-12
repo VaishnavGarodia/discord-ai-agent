@@ -1,5 +1,16 @@
 {
     "active_competition": null,
-    "past_competitions": [],
+    "past_competitions": [
+        {
+            "name": "y2k",
+            "description": "Unleash your inner Y2K icon in our styling competition!  Contestants will create a head-to-toe look embodying the era's iconic trends: low-rise jeans, crop tops, chunky sneakers, vibrant colors, and playful layering.  Judges will assess originality, accuracy to the Y2K aesthetic, styling skill, and overall impact.  The most innovative and stylish Y2K recreation wins!\n",
+            "sponsor": "StyleCo",
+            "start_date": "2025-03-12T00:37:00.150111",
+            "end_date": "2025-03-12T00:37:00.150141",
+            "duration_days": 7,
+            "participants": [],
+            "submissions": {}
+        }
+    ],
     "votes": {}
 }

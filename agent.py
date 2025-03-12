@@ -11,6 +11,7 @@ from io import BytesIO
 import re
 import base64
 
+
 # Load environment variables
 load_dotenv()
 
@@ -28,7 +29,7 @@ class MistralAgent:
         try:
             # Initialize Gemini model with the correct model name
             self.vision_model = genai.GenerativeModel('gemini-1.5-flash')  # Updated model name
-            self.text_model = genai.GenerativeModel('gemini-pro')  # For text interactions
+            self.text_model = genai.GenerativeModel('gemini-1.5-flash')  # For text interactions
             print("Gemini models initialized successfully")
         except Exception as e:
             print(f"Error initializing Gemini models: {str(e)}")
@@ -72,18 +73,54 @@ class MistralAgent:
         if message.content.startswith("!"):
             return await self.process_command(message)
             
-        # Default response - general fashion advice
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": message.content},
-        ]
+        # Get user's recent chat history for context
+        user_history = self.data_manager.get_chat_history(message.author.id, limit=3)
+        
+        # Prepare context from chat history
+        context = ""
+        if user_history:
+            context = "Previous conversation:\n"
+            for entry in user_history:
+                context += f"User: {entry['user_message']}\nAI: {entry['ai_response'][:100]}...\n\n"
+        
+        # Get recent submissions for context
+        recent_submissions = self.data_manager.get_outfit_submissions_history(message.author.id, limit=1)
+        if recent_submissions:
+            recent = recent_submissions[0]
+            context += f"\nUser's most recent outfit submission had ratings:\n"
+            context += f"Trend Accuracy: {recent.get('ratings', {}).get('trend_accuracy', 'N/A')}/10\n"
+            context += f"Creativity: {recent.get('ratings', {}).get('creativity', 'N/A')}/10\n"
+            context += f"Overall Fit: {recent.get('ratings', {}).get('fit', 'N/A')}/10\n"
+        
+        # Generate response using the text model  
+        prompt = f"""You are a helpful and friendly fashion assistant bot that provides fashion advice.
+        
+{context}
 
-        response = await self.client.chat.complete_async(
-            model=MISTRAL_MODEL,
-            messages=messages,
-        )
+Current user question: {message.content}
 
-        return response.choices[0].message.content
+Respond in a friendly, conversational way. If they're asking about fashion, provide specific, actionable advice.
+If they have previous outfit submissions, refer to them when relevant. If they're asking about something
+unrelated to fashion, you can answer briefly but encourage fashion-related questions.
+
+Remember they can submit outfits with !submit and get feedback on their last outfit with !feedback [question].
+"""
+
+        try:
+            response = self.text_model.generate_content(prompt)
+            ai_response = response.text
+            
+            # Save to chat history
+            self.data_manager.add_to_chat_history(
+                message.author.id,
+                message.content,
+                ai_response
+            )
+            
+            return self.split_message(ai_response)
+        except Exception as e:
+            print(f"Error generating response: {str(e)}")
+            return "Sorry, I couldn't process your request right now. Please try again later."
     
     async def process_command(self, message: discord.Message):
         # Split the command into parts
@@ -105,9 +142,10 @@ class MistralAgent:
             return await self.handle_vote_command(message, parts)
         elif command == "!help":
             return await self.handle_help_command(message)
-        
-        # If it's not one of our commands, return None so the main bot can handle it
-        return None
+        elif command == "!feedback":
+            return await self.handle_feedback_command(message)
+        else:
+            return None
         
     async def handle_trend_command(self, message: discord.Message, parts):
         if len(parts) < 2:
@@ -125,17 +163,12 @@ class MistralAgent:
             # If trend name is provided, use it. Otherwise, pick a random one
             if len(parts) >= 3:
                 trend_name = " ".join(parts[2:])
-                # If we don't have a description, ask Mistral to generate one
+                # If we don't have a description, ask gemini to generate one
                 description_prompt = f"Create a brief description (2-3 sentences) of the fashion trend '{trend_name}'. Include key style elements, signature pieces, and overall aesthetic."
-                messages = [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": description_prompt},
-                ]
-                response = await self.client.chat.complete_async(
-                    model=MISTRAL_MODEL,
-                    messages=messages,
-                )
-                description = response.choices[0].message.content
+                
+                # Generate description using the text model
+                response = self.text_model.generate_content(description_prompt)
+                description = response.text
             else:
                 return "Please provide a trend name: `!trend announce [trend name]`"
             
@@ -260,7 +293,10 @@ Overall Fit: [X]/10
 [Specific justification]
 
 ## Summary
-[Brief assessment]"""
+[Brief assessment]
+
+## Improvement Tips
+[2-3 specific suggestions to improve this outfit]"""
 
                 print("Sending request to Gemini...")  # Debug log
                 
@@ -303,11 +339,12 @@ Overall Fit: [X]/10
                 creativity = float(creativity_match.group(1)) if creativity_match else 5.0
                 fit = float(fit_match.group(1)) if fit_match else 5.0
                 
-                # Save submission and ratings
+                # Save submission and ratings with analysis text
                 success, submission = self.data_manager.submit_outfit(
                     message.author.id,
                     message.author.name,
-                    image_url
+                    image_url,
+                    analysis_text=analysis
                 )
                 
                 if not success:
@@ -319,6 +356,7 @@ Overall Fit: [X]/10
                     trend_accuracy,
                     creativity,
                     fit,
+                    submission_id=submission["id"],
                     username=message.author.name
                 )
                 
@@ -335,7 +373,16 @@ Overall Fit: [X]/10
 **Total points:** {user_info['points']}
 
 Thank you for participating! Check the leaderboard with `!leaderboard`
+Need more feedback? Ask me with `!feedback YOUR QUESTION`
 """
+                
+                # Save message in chat history
+                self.data_manager.add_to_chat_history(
+                    message.author.id,
+                    f"!submit [image]",
+                    response_text,
+                    submission_id=submission["id"]
+                )
                 
                 return self.split_message(response_text)
                 
@@ -411,17 +458,10 @@ Keep styling to earn more points and unlock rewards!
                 
             competition_name = " ".join(parts[2:])
             
-            # Generate description using Mistral
+            # Generate description using the text model
             description_prompt = f"Create a description for a fashion styling competition called '{competition_name}'. Include what contestants should focus on and criteria for winning. Keep it under 100 words."
-            messages = [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": description_prompt},
-            ]
-            response = await self.client.chat.complete_async(
-                model=MISTRAL_MODEL,
-                messages=messages,
-            )
-            description = response.choices[0].message.content
+            response = self.text_model.generate_content(description_prompt)
+            description = response.text
             
             # Generate sponsor
             sponsors = ["StyleCo", "Fashion Forward", "Trend Setters", "ChicBoutique", "Urban Edge"]
@@ -474,8 +514,7 @@ Stay tuned for the next competition!
                 return f"Error: {result}"
                 
         elif action == "status":
-            comp_data = self._load_json(self.competitions_file)
-            active_comp = comp_data.get("active_competition")
+            active_comp = self.data_manager.get_active_competition()
             
             if not active_comp:
                 return "No active competition at the moment."
@@ -557,29 +596,108 @@ Good luck!
             return f"Error: {result}"
     
     async def handle_help_command(self, message: discord.Message):
-        return """
-## 👗 FashionBot Commands 👗
+        """Generate and display help information."""
+        help_text = """
+## FashionBot Commands
 
-**Trend Challenges:**
-- `!trend announce [name]` - Start a new trend challenge
-- `!trend end` - End the current trend challenge
-- `!trend list` - See available trend ideas
-- `!trend status` - Show the current active trend
+### Outfit Analysis
+- **!submit** - Submit an outfit image for the current trend challenge
+- **!feedback [question]** - Ask for more detailed feedback or advice about your last outfit submission
 
-**Participation:**
-- `!submit` - Submit your outfit for the current trend (attach photo)
-- `!points` - Check your points and stats
-- `!leaderboard` - View the top fashionistas
+### Trends
+- **!trend** - View current trend challenge info
+- **!trend new [name] [description]** - (Admin) Start a new trend challenge
+- **!trend end** - (Admin) End the current trend challenge
 
-**Competitions:**
-- `!competition start [name]` - Start a styling competition
-- `!competition end` - End the current competition
-- `!competition status` - Show current competition info
-- `!competition submit` - Submit your entry (attach photo)
-- `!vote [username]` - Vote for someone's competition entry
+### Competitions
+- **!competition** - View active competition
+- **!competition new [name] [description] [sponsor]** - (Admin) Start a new competition
+- **!competition end** - (Admin) End the competition and calculate winners
+- **!vote [@user]** - Vote for someone's competition entry
+
+### Personal Stats
+- **!points** - Check your current points
+- **!leaderboard** - View the top users and their points
+
+### General
+- **!help** - Show this help message
 
 For any fashion advice, just message me directly!
 """
+        return help_text
+
+    async def handle_feedback_command(self, message: discord.Message):
+        """
+        Handle feedback requests about outfit submissions.
+        This allows users to ask follow-up questions about their outfits.
+        """
+        try:
+            # Get user's chat history
+            user_history = self.data_manager.get_chat_history(message.author.id)
+            
+            # Get user's recent submissions
+            recent_submissions = self.data_manager.get_outfit_submissions_history(message.author.id)
+            
+            if not recent_submissions:
+                response = "You don't have any recent outfit submissions. Submit an outfit first with `!submit`."
+                self.data_manager.add_to_chat_history(message.author.id, message.content, response)
+                return response
+            
+            # Get user's query from the message
+            user_query = message.content.replace("!feedback", "", 1).strip()
+            if not user_query:
+                response = "Please include a question about your outfit. For example: `!feedback How can I improve my color coordination?`"
+                self.data_manager.add_to_chat_history(message.author.id, message.content, response)
+                return response
+            
+            # Get most recent submission with analysis
+            most_recent = recent_submissions[0]
+            
+            # Create a prompt for the AI
+            prompt = f"""You are a fashion advisor analyzing a user's outfit. They submitted an outfit and received feedback, and now they're asking for more information.
+
+Here is the original analysis of their outfit:
+{most_recent.get('analysis_text', 'No analysis available')}
+
+The ratings were:
+Trend Accuracy: {most_recent.get('ratings', {}).get('trend_accuracy', 'N/A')}/10
+Creativity: {most_recent.get('ratings', {}).get('creativity', 'N/A')}/10
+Overall Fit: {most_recent.get('ratings', {}).get('fit', 'N/A')}/10
+
+The user is asking: "{user_query}"
+
+Give them specific, constructive advice based on the original analysis. Be encouraging while providing practical tips they can use.
+Focus on:
+1. Direct answers to their questions
+2. Specific, actionable improvement suggestions
+3. Encouragement and positive reinforcement
+4. Trend-relevant advice
+
+Format your response in clear, helpful paragraphs with bullet points for specific tips.
+"""
+            try:
+                response = self.text_model.generate_content(prompt)
+                ai_response = response.text
+                
+                # Save to chat history
+                self.data_manager.add_to_chat_history(
+                    message.author.id,
+                    message.content,
+                    ai_response,
+                    submission_id=most_recent.get('id')
+                )
+                
+                return self.split_message(ai_response)
+                
+            except Exception as e:
+                print(f"Error generating feedback: {str(e)}")
+                return "Sorry, I couldn't generate feedback at the moment. Please try again later."
+                
+        except Exception as e:
+            print(f"Error in handle_feedback_command: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return "Sorry, there was an error processing your feedback request. Please try again."
 
     def split_message(self, message, limit=1900):
         """Split a message into chunks that fit within Discord's character limit."""

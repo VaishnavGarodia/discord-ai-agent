@@ -1,11 +1,13 @@
 {
     "active_trend": {
-        "name": "y2k revival",
-        "description": "Oh, darling, let me take you on a blast to the past with the 'Y2K revival' trend! This early 2000s-inspired style is all about embracing bold colors, futuristic designs, and unapologetic bling. Think low-rise jeans, crop tops, platform shoes, and mini shoulder bags \u2013 it's like Paris Hilton and Britney Spears are still ruling the scene!",
-        "start_date": "2025-03-05T23:58:54.236235",
-        "end_date": "2025-03-05T23:58:54.236305",
+        "name": "silly fits",
+        "description": "Silly fits are a playful, maximalist fashion trend characterized by unexpected color combinations, clashing prints, and an abundance of whimsical accessories.  Signature pieces include oversized clothing, novelty items, and anything that defies conventional taste, resulting in a deliberately absurd and humorous aesthetic.  The overall effect is one of joyous self-expression and a rejection of seriousness.\n",
+        "start_date": "2025-03-12T00:31:20.448597",
+        "end_date": "2025-03-12T00:31:20.448633",
         "duration_days": 7,
-        "participants": []
+        "participants": [
+            746758460410036225
+        ]
     },
     "past_trends": [
         {
@@ -18,7 +20,32 @@
                 746758460410036225,
                 1347104491996184627
             ]
+        },
+        {
+            "name": "y2k revival",
+            "description": "Oh, darling, let me take you on a blast to the past with the 'Y2K revival' trend! This early 2000s-inspired style is all about embracing bold colors, futuristic designs, and unapologetic bling. Think low-rise jeans, crop tops, platform shoes, and mini shoulder bags \u2013 it's like Paris Hilton and Britney Spears are still ruling the scene!",
+            "start_date": "2025-03-05T23:58:54.236235",
+            "end_date": "2025-03-05T23:58:54.236305",
+            "duration_days": 7,
+            "participants": []
         }
     ],
-    "submissions": {}
+    "submissions": {
+        "746758460410036225_20250312005400": {
+            "id": "746758460410036225_20250312005400",
+            "user_id": 746758460410036225,
+            "username": "vaishnav9370",
+            "trend_id": "silly fits",
+            "image_url": "https://cdn.discordapp.com/attachments/1347099202127265867/1349289307046678581/RIPPLE.png?ex=67d28f17&is=67d13d97&hm=7f6eb5801057115c576c94d4dc1bb2a312b347354be0cb50e1012f80d70edd5f&",
+            "submission_date": "2025-03-12T00:54:00.751176",
+            "ratings": {
+                "trend_accuracy": 5.0,
+                "creativity": 5.0,
+                "fit": 5.0,
+                "average": 5.0,
+                "points": 50
+            },
+            "analysis_text": "The provided image is a logo, not a person wearing an outfit. Therefore, it's impossible to analyze it according to the requested format.  I need an image of an outfit to complete this task.\n"
+        }
+    }
 }

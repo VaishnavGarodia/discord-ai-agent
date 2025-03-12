@@ -60,13 +60,10 @@ async def on_message(message: discord.Message):
 
     https://discordpy.readthedocs.io/en/latest/api.html#discord.on_message
     """
-    # Don't delete this line! It's necessary for the bot to process commands.
-    await bot.process_commands(message)
-
     # Ignore messages from self or other bots to prevent infinite loops.
     if message.author.bot:
         return
-        
+    
     # Process fashionbot commands through the agent if it starts with !
     if message.content.startswith("!"):
         logger.info(f"Processing command from {message.author}: {message.content}")
@@ -74,6 +71,9 @@ async def on_message(message: discord.Message):
         if agent_response:
             await message.reply(agent_response)
         return
+
+    # Only process Discord built-in commands if not already handled by the agent
+    await bot.process_commands(message)
 
     # For regular messages, use the agent for fashion advice
     logger.info(f"Processing message from {message.author}: {message.content}")

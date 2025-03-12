@@ -1,13 +1,53 @@
-2025-03-05 23:57:22,879:WARNING:discord.client: PyNaCl is not installed, voice will NOT be supported
-2025-03-05 23:57:22,954:INFO:discord.client: logging in using static token
-2025-03-05 23:57:23,864:INFO:discord.gateway: Shard ID None has connected to Gateway (Session ID: 0ee03cdfba7a2186b069552c23e38d47).
-2025-03-05 23:57:25,882:INFO:discord: CS 153#2411 has connected to Discord!
-2025-03-05 23:57:42,526:INFO:discord: Processing command from etet24___: !trend announce y2k revival
-2025-03-05 23:57:42,720:ERROR:discord.ext.commands.bot: Ignoring exception in command None
-discord.ext.commands.errors.CommandNotFound: Command "trend" is not found
-2025-03-05 23:58:45,784:INFO:discord: Processing command from etet24___: !trend end
-2025-03-05 23:58:45,829:ERROR:discord.ext.commands.bot: Ignoring exception in command None
-discord.ext.commands.errors.CommandNotFound: Command "trend" is not found
-2025-03-05 23:58:51,676:INFO:discord: Processing command from etet24___: !trend announce y2k revival
-2025-03-05 23:58:51,788:ERROR:discord.ext.commands.bot: Ignoring exception in command None
-discord.ext.commands.errors.CommandNotFound: Command "trend" is not found
+2025-03-12 00:36:40,259:WARNING:discord.client: PyNaCl is not installed, voice will NOT be supported
+2025-03-12 00:36:40,259:INFO:discord.client: logging in using static token
+2025-03-12 00:36:40,924:INFO:discord.gateway: Shard ID None has connected to Gateway (Session ID: 463c3c7abab8035a8047b96001c6727e).
+2025-03-12 00:36:42,953:INFO:discord: CS 153#2411 has connected to Discord!
+2025-03-12 00:36:48,582:INFO:discord: Processing command from vaishnav9370: !competition status
+2025-03-12 00:36:59,209:INFO:discord: Processing command from vaishnav9370: !competition start y2k
+2025-03-12 00:38:11,553:INFO:discord: Processing command from vaishnav9370: !competiton submit
+2025-03-12 00:38:32,408:INFO:discord: Processing command from vaishnav9370: !leaderboard
+2025-03-12 00:38:45,348:INFO:discord: Processing command from vaishnav9370: !help
+2025-03-12 00:38:58,942:INFO:discord: Processing command from vaishnav9370: !vote vaishnav9370
+2025-03-12 00:39:16,172:INFO:discord: Processing command from vaishnav9370: !points
+2025-03-12 00:43:04,465:WARNING:discord.gateway: Can't keep up, shard ID None websocket is 37.3s behind.
+2025-03-12 00:50:26,862:INFO:discord.gateway: Shard ID None session has been invalidated.
+2025-03-12 00:51:37,709:INFO:discord.gateway: Shard ID None session has been invalidated.
+2025-03-12 00:51:43,219:INFO:discord.gateway: Shard ID None has connected to Gateway (Session ID: 449392d212f61b643a110033758c3c49).
+2025-03-12 00:51:45,231:INFO:discord: CS 153#2411 has connected to Discord!
+2025-03-12 00:52:02,466:INFO:discord: Processing command from vaishnav9370: !leaderboard
+2025-03-12 00:52:13,425:INFO:discord: Processing command from vaishnav9370: !help
+2025-03-12 00:52:29,409:INFO:discord: Processing command from vaishnav9370: !competition end
+2025-03-12 00:52:35,771:INFO:discord: Processing command from vaishnav9370: !leaderboard
+2025-03-12 00:53:25,634:INFO:discord: Processing command from vaishnav9370: !trend announce
+2025-03-12 00:53:31,988:INFO:discord: Processing command from vaishnav9370: !trend announce y2k
+2025-03-12 00:53:40,442:INFO:discord: Processing command from vaishnav9370: !help
+2025-03-12 00:53:59,613:INFO:discord: Processing command from vaishnav9370: !submit
+2025-03-12 00:56:11,857:INFO:discord: Processing command from vaishnav9370: !feedback what do you think of my outfit
+2025-03-12 00:56:16,989:ERROR:discord.client: Ignoring exception in on_message
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/discord/client.py", line 481, in _run_event
+    await coro(*args, **kwargs)
+  File "/Users/vaishnavgarodia/Dev/CS153/ai-agent/bot.py", line 72, in on_message
+    await message.reply(agent_response)
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/discord/message.py", line 1869, in reply
+    return await self.channel.send(content, reference=self, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/discord/abc.py", line 1644, in send
+    data = await state.http.send_message(channel.id, params=params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/discord/http.py", line 762, in request
+    raise HTTPException(response, data)
+discord.errors.HTTPException: 400 Bad Request (error code: 50035): Invalid Form Body
+In content: Must be 2000 or fewer in length.
+2025-03-12 01:03:07,956:INFO:discord.gateway: Shard ID None session has been invalidated.
+2025-03-12 01:03:13,408:INFO:discord.gateway: Shard ID None has connected to Gateway (Session ID: 64ac4d72d18253a89b2cd5f40f6cf134).
+2025-03-12 01:03:15,430:INFO:discord: CS 153#2411 has connected to Discord!
+2025-03-12 01:03:57,817:WARNING:discord.gateway: Can't keep up, shard ID None websocket is 33.4s behind.
+2025-03-12 01:05:21,975:INFO:discord.gateway: Shard ID None has successfully RESUMED session 64ac4d72d18253a89b2cd5f40f6cf134.
+2025-03-12 01:24:03,882:INFO:discord.gateway: Shard ID None session has been invalidated.
+2025-03-12 01:25:53,398:INFO:discord.gateway: Shard ID None session has been invalidated.
+2025-03-12 01:26:49,890:INFO:discord.gateway: Shard ID None has connected to Gateway (Session ID: 956465f326e2cac7735193a310c4273a).
+2025-03-12 01:26:51,899:INFO:discord: CS 153#2411 has connected to Discord!
+2025-03-12 01:29:04,375:INFO:discord.gateway: Shard ID None session has been invalidated.
+2025-03-12 01:29:09,840:INFO:discord.gateway: Shard ID None has connected to Gateway (Session ID: d71a0d4574871c8df803af828985665f).
+2025-03-12 01:29:11,867:INFO:discord: CS 153#2411 has connected to Discord!

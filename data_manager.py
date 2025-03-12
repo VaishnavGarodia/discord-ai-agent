@@ -9,6 +9,7 @@ class DataManager:
         self.trends_file = os.path.join(self.data_folder, "trends.json")
         self.users_file = os.path.join(self.data_folder, "users.json")
         self.competitions_file = os.path.join(self.data_folder, "competitions.json")
+        self.chat_history_file = os.path.join(self.data_folder, "chat_history.json")
         
         # Create data folder if it doesn't exist
         if not os.path.exists(self.data_folder):
@@ -38,6 +39,12 @@ class DataManager:
                 "active_competition": None,
                 "past_competitions": [],
                 "votes": {}
+            })
+            
+        # Chat history data structure
+        if not os.path.exists(self.chat_history_file):
+            self._save_json(self.chat_history_file, {
+                "user_histories": {}
             })
     
     def _load_json(self, file_path):
@@ -93,64 +100,95 @@ class DataManager:
         self._save_json(self.trends_file, trends_data)
         return True, "Trend challenge ended successfully"
     
-    def submit_outfit(self, user_id, username, image_url, trend_id=None):
+    def submit_outfit(self, user_id, username, image_url, trend_id=None, analysis_text=None):
+        """Submit a new outfit for the current trend challenge."""
         trends_data = self._load_json(self.trends_file)
         
-        if not trends_data.get("active_trend"):
-            return False, "No active trend challenge to submit to"
+        # Get active trend if no trend_id is provided
+        if not trend_id:
+            active_trend = trends_data.get("active_trend")
+            if not active_trend:
+                return False, "No active trend challenge found"
+            trend_id = active_trend.get("name")
         
-        # Add submission
-        if str(user_id) not in trends_data["submissions"]:
-            trends_data["submissions"][str(user_id)] = []
+        # Create submission ID
+        submission_id = f"{user_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
         
+        # Create submission entry
         submission = {
-            "user_id": str(user_id),
+            "id": submission_id,
+            "user_id": user_id,
             "username": username,
+            "trend_id": trend_id,
             "image_url": image_url,
-            "timestamp": datetime.now().isoformat(),
-            "rating": None
+            "submission_date": datetime.now().isoformat(),
+            "ratings": {},
+            "analysis_text": analysis_text  # Store the AI analysis text
         }
         
-        trends_data["submissions"][str(user_id)].append(submission)
+        # Add submission
+        if "submissions" not in trends_data:
+            trends_data["submissions"] = {}
+        trends_data["submissions"][submission_id] = submission
         
-        if user_id not in trends_data["active_trend"]["participants"]:
+        # Add user to participants if not already there
+        if active_trend and user_id not in active_trend.get("participants", []):
             trends_data["active_trend"]["participants"].append(user_id)
         
         self._save_json(self.trends_file, trends_data)
         return True, submission
     
-    def rate_submission(self, user_id, trend_accuracy, creativity, fit, username=None):
+    def rate_submission(self, user_id, trend_accuracy, creativity, fit, submission_id=None, username=None):
+        """Rate a user's outfit submission."""
         trends_data = self._load_json(self.trends_file)
         
-        if not trends_data.get("active_trend"):
-            return False, "No active trend challenge"
+        # Find the submission to rate
+        if submission_id:
+            # Rate specific submission
+            if submission_id not in trends_data.get("submissions", {}):
+                return False, "Submission not found"
+            
+            submission = trends_data["submissions"][submission_id]
+        else:
+            # Find most recent submission for this user
+            user_submissions = []
+            for sid, sub in trends_data.get("submissions", {}).items():
+                if str(sub.get("user_id")) == str(user_id):
+                    user_submissions.append(sub)
+            
+            if not user_submissions:
+                return False, "No submissions found for this user"
+            
+            # Sort by submission date and get most recent
+            user_submissions.sort(key=lambda x: x.get("submission_date", ""), reverse=True)
+            submission = user_submissions[0]
+            submission_id = submission["id"]
         
-        if str(user_id) not in trends_data["submissions"]:
-            return False, "No submission found for this user"
+        # Calculate points (average of the three ratings * 10)
+        average_rating = (trend_accuracy + creativity + fit) / 3
+        points = int(average_rating * 10)
         
-        # Rate the latest submission
-        latest_submission = trends_data["submissions"][str(user_id)][-1]
-        
-        # Get the username from the submission
-        submission_username = latest_submission["username"]
-        
-        rating = {
+        # Update submission ratings
+        trends_data["submissions"][submission_id]["ratings"] = {
             "trend_accuracy": trend_accuracy,
             "creativity": creativity,
             "fit": fit,
-            "total": (trend_accuracy + creativity + fit) / 3
+            "average": average_rating,
+            "points": points
         }
         
-        latest_submission["rating"] = rating
-        
-        # Update submission in data
-        trends_data["submissions"][str(user_id)][-1] = latest_submission
-        
-        # Add points to user, passing the proper username
-        self.add_points(user_id, int(rating["total"] * 10), username=submission_username)
-        
         self._save_json(self.trends_file, trends_data)
-        return True, rating
+        
+        # Update user points
+        self.add_points(user_id, points, username)
+        
+        return True, {
+            "trend_accuracy": trend_accuracy,
+            "creativity": creativity,
+            "fit": fit,
+            "average": average_rating,
+            "points": points
+        }
     
     # USER/POINTS MANAGEMENT
     
@@ -280,9 +318,6 @@ class DataManager:
         # Update submission
         comp_data["active_competition"]["submissions"][str(user_id)][-1] = latest_submission
         
-        # Add points to user
-        self.add_points(user_id, 10)
-        
         self._save_json(self.competitions_file, comp_data)
         return True, "Vote recorded successfully"
     
@@ -324,3 +359,85 @@ class DataManager:
         self._save_json(self.users_file, users_data)
         
         return True, comp_data["past_competitions"][-1]
+    
+    def get_active_competition(self):
+        """Get the currently active competition data."""
+        comp_data = self._load_json(self.competitions_file)
+        return comp_data.get("active_competition")
+    
+    # CHAT HISTORY MANAGEMENT
+    
+    def add_to_chat_history(self, user_id, message_content, ai_response, submission_id=None):
+        """
+        Add a message and response pair to a user's chat history.
+        
+        Args:
+            user_id (str): Discord user ID
+            message_content (str): The user's message
+            ai_response (str): The AI's response
+            submission_id (str, optional): ID of an outfit submission this conversation refers to
+        """
+        chat_data = self._load_json(self.chat_history_file)
+        
+        # Initialize user history if it doesn't exist
+        if str(user_id) not in chat_data["user_histories"]:
+            chat_data["user_histories"][str(user_id)] = []
+        
+        # Add the new message pair
+        message_pair = {
+            "timestamp": datetime.now().isoformat(),
+            "user_message": message_content,
+            "ai_response": ai_response,
+            "submission_id": submission_id
+        }
+        
+        # Limit chat history to the most recent 20 message pairs
+        user_history = chat_data["user_histories"][str(user_id)]
+        user_history.append(message_pair)
+        if len(user_history) > 20:
+            user_history = user_history[-20:]
+        chat_data["user_histories"][str(user_id)] = user_history
+        
+        self._save_json(self.chat_history_file, chat_data)
+    
+    def get_chat_history(self, user_id, limit=5):
+        """
+        Get recent chat history for a user.
+        
+        Args:
+            user_id (str): Discord user ID
+            limit (int): Maximum number of message pairs to return
+            
+        Returns:
+            list: The most recent message pairs, newest first
+        """
+        chat_data = self._load_json(self.chat_history_file)
+        
+        if str(user_id) not in chat_data["user_histories"]:
+            return []
+        
+        user_history = chat_data["user_histories"][str(user_id)]
+        return user_history[-limit:]
+    
+    def get_outfit_submissions_history(self, user_id, limit=3):
+        """
+        Get user's recent outfit submissions for context in feedback.
+        
+        Args:
+            user_id (str): Discord user ID
+            limit (int): Maximum number of submissions to return
+            
+        Returns:
+            list: The most recent submissions with AI feedback
+        """
+        trends_data = self._load_json(self.trends_file)
+        
+        user_submissions = []
+        for submission_id, submission in trends_data.get("submissions", {}).items():
+            if str(submission.get("user_id")) == str(user_id):
+                user_submissions.append(submission)
+        
+        # Sort by submission date, newest first
+        user_submissions.sort(key=lambda x: x.get("submission_date", ""), reverse=True)
+        
+        return user_submissions[:limit]
